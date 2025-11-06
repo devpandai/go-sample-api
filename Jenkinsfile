@@ -40,11 +40,14 @@ pipeline {
       steps {
         script {
           sh '''
+            echo "=== Deploying to Kubernetes ==="
+            echo "Workspace path: $(pwd)"
+            ls -la
             docker run --rm \
-            -v /root/.kube:/root/.kube \
-            -v $(pwd):/app \
-            bitnami/kubectl:latest \
-            apply -f /app/deployment.yaml -n cicd
+              -v /root/.kube:/root/.kube \
+              -v $(pwd):/app \
+              bitnami/kubectl:latest \
+              apply -f /app/deployment.yaml -n cicd
           '''
         }
       }
