@@ -44,16 +44,19 @@ pipeline {
             echo "Current directory: $(pwd)"
             ls -la
 
-            # Install kubectl (Debian-based Jenkins)
+            # Clean up any broken Kubernetes repo (optional)
+            rm -f /etc/apt/sources.list.d/kubernetes.list || true
+
+            # Install kubectl (safe official binary)
             if ! command -v kubectl &> /dev/null; then
-              echo "Installing kubectl..."
-              apt-get update -y
-              apt-get install -y curl
-              curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+              echo "Installing kubectl from official release..."
+              apt-get update -y && apt-get install -y curl
+              KUBECTL_VERSION=$(curl -s https://dl.k8s.io/release/stable.txt)
+              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
               chmod +x kubectl && mv kubectl /usr/local/bin/
             fi
 
-            echo "=== Applying deployment.yaml ==="
+            echo "=== Applying manifests to Kubernetes ==="
             kubectl apply -f deployment.yaml -n cicd
             kubectl apply -f service.yaml -n cicd
           '''
