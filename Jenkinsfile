@@ -38,11 +38,15 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       steps {
-        sh '''
-          kubectl apply -f deployment.yaml -n cicd
-          kubectl apply -f service.yaml -n cicd
-        '''
+        script {
+          sh '''
+            docker run --rm -v $HOME/.kube:/root/.kube \
+            -v $(pwd):/app bitnami/kubectl:latest \
+            kubectl apply -f /app/deployment.yaml -n cicd
+          '''
+        }
       }
     }
+
   }
 }
