@@ -40,13 +40,16 @@ pipeline {
       steps {
         script {
           sh '''
-            docker run --rm -v $HOME/.kube:/root/.kube \
-            -v $(pwd):/app bitnami/kubectl:latest \
-            kubectl apply -f /app/deployment.yaml -n cicd
+            docker run --rm \
+            -v /root/.kube:/root/.kube \
+            -v $(pwd):/app \
+            bitnami/kubectl:latest \
+            apply -f /app/deployment.yaml -n cicd
           '''
         }
       }
     }
+
 
   }
 }
