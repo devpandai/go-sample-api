@@ -44,20 +44,23 @@ pipeline {
             echo "Current directory: $(pwd)"
             ls -la
 
-            # Install kubectl kalau belum ada
+            # Install kubectl (Debian-based Jenkins)
             if ! command -v kubectl &> /dev/null; then
               echo "Installing kubectl..."
-              apk add --no-cache curl
+              apt-get update -y
+              apt-get install -y curl
               curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
               chmod +x kubectl && mv kubectl /usr/local/bin/
             fi
 
             echo "=== Applying deployment.yaml ==="
             kubectl apply -f deployment.yaml -n cicd
+            kubectl apply -f service.yaml -n cicd
           '''
         }
       }
     }
+
 
 
 
