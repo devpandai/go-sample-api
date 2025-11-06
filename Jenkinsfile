@@ -41,17 +41,24 @@ pipeline {
         script {
           sh '''
             echo "=== Deploying to Kubernetes ==="
-            echo "Workspace path: $(pwd)"
+            echo "Current directory: $(pwd)"
             ls -la
-            docker run --rm \
-              -v /root/.kube:/root/.kube \
-              -v $(pwd):/app \
-              bitnami/kubectl:latest \
-              apply -f /app/deployment.yaml -n cicd
+
+            # Install kubectl kalau belum ada
+            if ! command -v kubectl &> /dev/null; then
+              echo "Installing kubectl..."
+              apk add --no-cache curl
+              curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+              chmod +x kubectl && mv kubectl /usr/local/bin/
+            fi
+
+            echo "=== Applying deployment.yaml ==="
+            kubectl apply -f deployment.yaml -n cicd
           '''
         }
       }
     }
+
 
 
   }
