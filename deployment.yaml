@@ -18,3 +18,19 @@ spec:
           image: ghcr.io/devpandai/go-sample-api:latest
           ports:
             - containerPort: 8080
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: ghcr-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-sample-api-service
+  namespace: cicd
+spec:
+  selector:
+    app: go-sample-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: NodePort
