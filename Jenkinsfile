@@ -51,7 +51,7 @@ pipeline {
             if ! command -v kubectl &> /dev/null; then
               echo "Installing kubectl from official release..."
               apt-get update -y && apt-get install -y curl
-              KUBECTL_VERSION=$(curl -s https://dl.k8s.io/release/stable.txt)
+              KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
               curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
               chmod +x kubectl && mv kubectl /usr/local/bin/
             fi
