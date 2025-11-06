@@ -38,34 +38,33 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       steps {
-        script {
-          sh '''
-            echo "=== Deploying to Kubernetes ==="
-            echo "Current directory: $(pwd)"
-            ls -la
+        withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+          script {
+            sh '''
+              echo "=== Deploying to Kubernetes ==="
+              echo "Current directory: $(pwd)"
+              ls -la
 
-            # Clean up any broken Kubernetes repo (optional)
-            rm -f /etc/apt/sources.list.d/kubernetes.list || true
+              # Install kubectl if not exists
+              if ! command -v kubectl &> /dev/null; then
+                echo "Installing kubectl from official release..."
+                apt-get update -y && apt-get install -y curl
+                KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
+                curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+                chmod +x kubectl && mv kubectl /usr/local/bin/
+              fi
 
-            # Install kubectl (safe official binary)
-            if ! command -v kubectl &> /dev/null; then
-              echo "Installing kubectl from official release..."
-              apt-get update -y && apt-get install -y curl
-              KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
-              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-              chmod +x kubectl && mv kubectl /usr/local/bin/
-            fi
+              echo "=== Checking cluster connection ==="
+              kubectl cluster-info
 
-            echo "=== Applying manifests to Kubernetes ==="
-            kubectl apply -f deployment.yaml -n cicd
-            kubectl apply -f service.yaml -n cicd
-          '''
+              echo "=== Applying manifests to Kubernetes ==="
+              kubectl apply -f deployment.yaml -n cicd
+              kubectl apply -f service.yaml -n cicd
+            '''
+          }
         }
       }
     }
-
-
-
 
   }
 }
