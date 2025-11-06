@@ -5,11 +5,14 @@ pipeline {
     REGISTRY = "ghcr.io/devpandai"
     IMAGE_NAME = "go-sample-api"
     IMAGE_TAG = "latest"
+    GITOPS_REPO = "https://github.com/devpandai/go-sample-deploy.git"
   }
 
   stages {
-    stage('Checkout') {
+
+    stage('Checkout Source') {
       steps {
+        echo "=== Checking out source code ==="
         git branch: 'main', url: 'https://github.com/devpandai/go-sample-api.git'
       }
     }
@@ -17,6 +20,7 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         script {
+          echo "=== Building Docker image ==="
           sh 'docker build -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .'
         }
       }
@@ -25,46 +29,64 @@ pipeline {
     stage('Login to GHCR') {
       steps {
         withCredentials([string(credentialsId: 'github-token', variable: 'TOKEN')]) {
-          sh 'echo $TOKEN | docker login ghcr.io -u devpandai --password-stdin'
-        }
-      }
-    }
-
-    stage('Push Image') {
-      steps {
-        sh 'docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG'
-      }
-    }
-
-    stage('Deploy to Kubernetes') {
-      steps {
-        withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
           script {
-            sh '''
-              echo "=== Deploying to Kubernetes ==="
-              echo "Current directory: $(pwd)"
-              ls -la
-
-              # Install kubectl if not exists
-              if ! command -v kubectl &> /dev/null; then
-                echo "Installing kubectl from official release..."
-                apt-get update -y && apt-get install -y curl
-                KUBECTL_VERSION=$(curl -sL https://dl.k8s.io/release/stable.txt)
-                curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-                chmod +x kubectl && mv kubectl /usr/local/bin/
-              fi
-
-              echo "=== Checking cluster connection ==="
-              kubectl cluster-info
-
-              echo "=== Applying manifests to Kubernetes ==="
-              kubectl apply -f deployment.yaml -n cicd
-              kubectl apply -f service.yaml -n cicd
-            '''
+            echo "=== Logging in to GitHub Container Registry (GHCR) ==="
+            sh 'echo $TOKEN | docker login ghcr.io -u devpandai --password-stdin'
           }
         }
       }
     }
 
+    stage('Push Docker Image') {
+      steps {
+        echo "=== Pushing image to GHCR ==="
+        sh 'docker push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG'
+      }
+    }
+
+    stage('Update ArgoCD GitOps Repo') {
+      steps {
+        withCredentials([string(credentialsId: 'github-token', variable: 'TOKEN')]) {
+          script {
+            echo "=== Updating ArgoCD GitOps repository ==="
+            sh '''
+              set -e
+              git config --global user.email "ci@jenkins.local"
+              git config --global user.name "Jenkins CI"
+
+              # Remove old repo if exists
+              rm -rf go-sample-deploy
+
+              # Clone GitOps repository
+              git clone https://$TOKEN@github.com/devpandai/go-sample-deploy.git
+              cd go-sample-deploy
+
+              echo "=== Current deployment.yaml ==="
+              cat deployment.yaml || echo "deployment.yaml not found!"
+
+              # Update image tag in deployment.yaml
+              sed -i "s#ghcr.io/devpandai/go-sample-api:.*#ghcr.io/devpandai/go-sample-api:${IMAGE_TAG}#g" deployment.yaml
+
+              echo "=== Updated deployment.yaml ==="
+              cat deployment.yaml
+
+              # Commit and push changes
+              git add deployment.yaml
+              git commit -m "Update image to ${IMAGE_TAG} by Jenkins on $(date)" || echo "No changes to commit"
+              git push origin main
+            '''
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Build & GitOps update completed successfully!"
+    }
+    failure {
+      echo "❌ Pipeline failed. Check logs for details."
+    }
   }
 }
