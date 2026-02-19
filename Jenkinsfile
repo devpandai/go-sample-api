@@ -26,17 +26,13 @@ pipeline {
       }
     }
 
-    stage('Login to GHCR') {
+   stage('Login to GHCR') {
       steps {
-        withCredentials([string(credentialsId: 'github-token', variable: 'TOKEN')]) {
-          script {
-            echo "=== Logging in to GitHub Container Registry (GHCR) ==="
-            sh 'echo $TOKEN | docker login ghcr.io -u devpandai --password-stdin'
-          }
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'USER', passwordVariable: 'TOKEN')]) {
+          sh "echo $TOKEN | docker login ghcr.io -u $USER --password-stdin"
         }
       }
     }
-
     stage('Push Docker Image') {
       steps {
         echo "=== Pushing image to GHCR ==="
