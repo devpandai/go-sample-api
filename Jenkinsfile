@@ -9,7 +9,7 @@ pipeline {
   environment {
     // === Harbor Registry ===
     REGISTRY = "registry.pimen.web.id"
-    PROJECT = "library"
+    PROJECT = "library"              // pastikan project ini benar-benar ada di Harbor
     IMAGE_NAME = "go-sample-api"
     IMAGE_TAG = "${BUILD_NUMBER}"
 
@@ -63,33 +63,6 @@ pipeline {
           set -e
           docker push $REGISTRY/$PROJECT/$IMAGE_NAME:$IMAGE_TAG
         '''
-      }
-    }
-
-    stage('Update GitOps Repo') {
-      steps {
-        echo "=== Updating GitOps repo ==="
-        dir('gitops') {
-          git branch: "${GITOPS_BRANCH}", url: "${GITOPS_REPO}"
-
-          sh """
-            set -e
-
-            IMAGE_FULL=${REGISTRY}/${PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}
-
-            echo "Updating deployment to \$IMAGE_FULL"
-
-            # Update image in deployment manifest
-            sed -i 's|image: .*|image: '"\$IMAGE_FULL"'|g' ${APP_PATH}/deployment.yaml
-
-            git config user.email "jenkins@local"
-            git config user.name "jenkins"
-
-            git add .
-            git commit -m "chore: update image to ${IMAGE_TAG}" || echo "No changes to commit"
-            git push origin ${GITOPS_BRANCH}
-          """
-        }
       }
     }
   }
